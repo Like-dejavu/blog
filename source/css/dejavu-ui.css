@@ -1,0 +1,179 @@
+/* ==========================================================================
+   dejavu-ui.css
+   ========================================================================== */
+:root {
+  --dj-bg: #eef1f4;
+  --dj-blob-1: rgba(160, 205, 193, .50);
+  --dj-blob-2: rgba(168, 190, 220, .45);
+  --dj-blob-3: rgba(228, 205, 175, .42);
+  --dj-ink: #333d47;
+  --dj-muted: #75808c;
+  --dj-faint: #a3adb8;
+  --dj-accent: #3e7d74;
+  --dj-accent-2: #a8794e;
+  --dj-accent-soft: rgba(62, 125, 116, .12);
+  --dj-glass: rgba(255, 255, 255, .60);
+  --dj-glass-strong: rgba(255, 255, 255, .80);
+  --dj-line: rgba(51, 61, 71, .08);
+  --dj-line-strong: rgba(51, 61, 71, .16);
+  --dj-shadow-1: 0 1px 2px rgba(28, 42, 52, .04), 0 10px 28px -14px rgba(28, 42, 52, .16);
+  --dj-shadow-2: 0 2px 6px rgba(28, 42, 52, .05), 0 20px 44px -16px rgba(28, 42, 52, .26);
+  --dj-blur: 16px;
+  --dj-radius-lg: 22px;
+  --dj-radius-md: 16px;
+  --dj-radius-sm: 12px;
+  --dj-font: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei UI", "Microsoft YaHei",
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --dj-font-mono: "JetBrains Mono", "SF Mono", Consolas, "Source Code Pro", Menlo, monospace;
+}
+
+body {
+  background:
+    radial-gradient(1100px 760px at 12% -8%, var(--dj-blob-1) 0%, transparent 56%),
+    radial-gradient(980px 700px at 102% 4%, var(--dj-blob-2) 0%, transparent 52%),
+    radial-gradient(1150px 900px at 50% 118%, var(--dj-blob-3) 0%, transparent 56%),
+    var(--dj-bg);
+  background-attachment: fixed;
+  color: var(--dj-ink);
+  font-family: var(--dj-font);
+  transition: background-color .3s ease, color .3s ease;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(460px 460px at 16% 18%, rgba(255, 255, 255, .34), transparent 70%),
+    radial-gradient(420px 420px at 86% 30%, rgba(255, 255, 255, .26), transparent 70%);
+}
+
+#wrap { background: transparent; }
+
+::selection { background: var(--dj-accent-soft); color: var(--dj-ink); }
+
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dj-line-strong) transparent;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: var(--dj-line-strong);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--dj-faint); background-clip: padding-box; border: 2px solid transparent; }
+::-webkit-scrollbar-track { background: transparent; }
+
+#nav, #header {
+  background: var(--dj-glass-strong);
+  -webkit-backdrop-filter: blur(var(--dj-blur)) saturate(1.5);
+  backdrop-filter: blur(var(--dj-blur)) saturate(1.5);
+  border-bottom: 1px solid var(--dj-line);
+  box-shadow: var(--dj-shadow-1);
+}
+#header {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+#banner { display: none; }
+#header-outer {
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+}
+#logo { font-size: 22px; font-weight: 700; letter-spacing: 1px; }
+#header-inner { display: flex; align-items: center; gap: 10px; }
+#main-nav { display: flex; align-items: center; gap: 6px; }
+.main-nav-link, .nav-icon {
+  color: var(--dj-ink) !important;
+  padding: 8px 14px !important;
+  border-radius: 999px;
+}
+.main-nav-link:hover, .nav-icon:hover { background: var(--dj-accent-soft); color: var(--dj-accent) !important; }
+
+#recent-posts .recent-post-item,
+.recent-post-item,
+.post-card,
+article.article,
+.archive-article-inner {
+  background: var(--dj-glass);
+  -webkit-backdrop-filter: blur(var(--dj-blur)) saturate(1.4);
+  backdrop-filter: blur(var(--dj-blur)) saturate(1.4);
+  border: 1px solid var(--dj-line);
+  border-radius: var(--dj-radius-lg);
+  box-shadow: var(--dj-shadow-1);
+  transition: transform .35s ease, box-shadow .35s ease;
+}
+article.article { margin: 22px 0; overflow: hidden; }
+.article-inner { background: transparent !important; box-shadow: none !important; border: none !important; }
+.article-more-link a {
+  display: inline-block;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: var(--dj-accent-soft);
+  color: var(--dj-accent);
+}
+
+#article-container, .article-entry {
+  color: var(--dj-ink);
+  font-size: 15.5px;
+  line-height: 1.85;
+}
+#article-container h2, .article-entry h2 { padding-left: 14px; position: relative; }
+#article-container h2::before, .article-entry h2::before {
+  content: "";
+  position: absolute;
+  left: 0; top: .16em; bottom: .16em;
+  width: 4px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--dj-accent), var(--dj-accent-2));
+}
+#article-container a, .article-entry a { color: var(--dj-accent); text-decoration: none; }
+#article-container blockquote, .article-entry blockquote {
+  margin: 1.4em 0;
+  padding: 14px 20px;
+  border: 1px solid var(--dj-line);
+  border-left: 4px solid var(--dj-accent);
+  border-radius: var(--dj-radius-sm);
+  background: var(--dj-accent-soft);
+}
+#article-container code, .article-entry code {
+  font-family: var(--dj-font-mono);
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--dj-accent-soft);
+  color: var(--dj-accent);
+}
+#article-container pre, .article-entry pre {
+  border: 1px solid var(--dj-line);
+  border-radius: var(--dj-radius-sm);
+  padding: 16px 18px;
+  overflow-x: auto;
+}
+
+#to-top,
+.dejavu-to-top {
+  position: fixed;
+  right: 22px;
+  bottom: 34px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: conic-gradient(var(--dj-accent) var(--dejavu-progress, 0deg), var(--dj-line-strong) 0deg);
+}
+.dejavu-to-top { opacity: 0; pointer-events: none; transform: translateY(14px) scale(.92); }
+.dejavu-to-top.dejavu-show { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }

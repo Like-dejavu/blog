@@ -1,0 +1,29 @@
+.dejavu-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.dejavu-aurora span {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(56px);
+  will-change: transform;
+}
+.dejavu-aurora .dj-a1 {
+  width: 46vw; height: 46vw;
+  left: -6vw; top: -10vw;
+  background: radial-gradient(circle at 35% 35%, rgba(168,178,255,.95), rgba(168,178,255,0) 68%);
+}
+.dejavu-aurora .dj-a2 {
+  width: 42vw; height: 42vw;
+  right: -5vw; top: 24vh;
+  background: radial-gradient(circle at 60% 45%, rgba(255,178,200,.85), rgba(255,178,200,0) 68%);
+}
+.dejavu-aurora .dj-a3 {
+  width: 52vw; height: 52vw;
+  left: 18vw; bottom: -20vw;
+  background: radial-gradient(circle at 50% 50%, rgba(140,215,210,.80), rgba(140,215,210,0) 68%);
+}
+@media (max-width: 768px) { .dejavu-aurora { display: none; } }
