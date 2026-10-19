@@ -1,0 +1,34 @@
+name: 写博客文章
+about: 在网页上写 issue，自动生成博客文章到 source 分支
+title: '[文章] '
+labels: [blog]
+body:
+  - type: textarea
+    id: content
+    attributes:
+      label: 文章内容（Markdown）
+      description: |
+        直接写 Markdown 正文即可。
+        如果需要自定义 tags / categories，在开头用 `---` 包裹 YAML front-matter：
+        ```
+        ---
+        tags:
+          - 标签1
+          - 标签2
+        categories:
+          - 分类1
+        ---
+
+        正文写在这里...
+        ```
+      value: |
+        ---
+        tags:
+          - 未分类
+        categories:
+          - 未分类
+        ---
+
+        在这里写正文...
+    validations:
+      required: true
