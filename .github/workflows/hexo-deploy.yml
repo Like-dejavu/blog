@@ -28,10 +28,23 @@ jobs:
 
       - name: Deploy to Like-dejavu.github.io
         run: |
+          set -x
+
+          if [ -z "${{ secrets.DEPLOY_TOKEN }}" ]; then
+            echo "ERROR: DEPLOY_TOKEN secret is empty!"
+            exit 1
+          fi
+
+          # 测试 token 是否有效
+          echo "=== Testing token ==="
+          curl -s -H "Authorization: token ${{ secrets.DEPLOY_TOKEN }}" https://api.github.com/user | head -5
+
           cd public
           git init
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "deploy: ${GITHUB_SHA::7}"
-          git push --force "https://x-access-token:${{ secrets.DEPLOY_TOKEN }}@github.com/Like-dejavu/Like-dejavu.github.io.git" HEAD:main
+
+          echo "=== Pushing ==="
+          git push --force -v "https://x-access-token:${{ secrets.DEPLOY_TOKEN }}@github.com/Like-dejavu/Like-dejavu.github.io.git" HEAD:main 2>&1
