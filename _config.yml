@@ -12,8 +12,8 @@ language: zh-CN
 timezone: ''
 
 # URL
-url: https://like-dejavu.github.io/blog/
-root: /blog/
+url: https://like-dejavu.github.io
+root: /
 permalink: :year/:month/:day/:title/
 permalink_defaults:
 pretty_urls:
