@@ -90,6 +90,8 @@ jobs:
             const slug = text
               .replace(/^[\s\-]+|[\s\-]+$/g, '')
               .replace(/[\\/:*?"<>|#%{}~`&$!'()\[\]]/g, '')
+              .replace(/[：？！。，、；（）【】《》「」“”‘’…—·～　"']/g, '')
+              .replace(/-{2,}/g, '-')
               .replace(/\s+/g, '-')
               .slice(0, 80)
               .replace(/^-+|-+$/g, '');
