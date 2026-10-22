@@ -8,15 +8,23 @@ on:
 permissions:
   contents: read
 
+# 同一时间只跑一次部署，避免两次构建互相覆盖
+concurrency:
+  group: hexo-deploy
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source
+        uses: actions/checkout@v4
         with:
           ref: source
+          fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
@@ -24,27 +32,36 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Build Hexo
-        run: npx hexo clean && npx hexo generate
+        run: |
+          set -euo pipefail
+          npx hexo clean
+          npx hexo generate
+
+      - name: Verify build output
+        run: |
+          set -euo pipefail
+          test -f public/index.html || { echo "构建失败：public/index.html 不存在"; exit 1; }
+          echo "生成的页面数: $(find public -name '*.html' | wc -l)"
+          test -f public/css/dejavu-ui.css || { echo "构建失败：dejavu-ui.css 缺失"; exit 1; }
 
       - name: Deploy to Like-dejavu.github.io
+        env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
         run: |
-          set -x
+          set -euo pipefail
 
-          if [ -z "${{ secrets.DEPLOY_TOKEN }}" ]; then
-            echo "ERROR: DEPLOY_TOKEN secret is empty!"
+          if [ -z "${DEPLOY_TOKEN:-}" ]; then
+            echo "ERROR: 缺少 DEPLOY_TOKEN secret，无法推送到 Like-dejavu.github.io"
             exit 1
           fi
 
-          # 测试 token 是否有效
-          echo "=== Testing token ==="
-          curl -s -H "Authorization: token ${{ secrets.DEPLOY_TOKEN }}" https://api.github.com/user | head -5
-
           cd public
-          git init
+          git init -q
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "deploy: ${GITHUB_SHA::7}"
+          git commit -q -m "deploy: ${GITHUB_SHA::7}"
 
-          echo "=== Pushing ==="
-          git push --force -v "https://x-access-token:${{ secrets.DEPLOY_TOKEN }}@github.com/Like-dejavu/Like-dejavu.github.io.git" HEAD:main 2>&1
+          # 不打印 URL（里面带 token），只在失败时输出 git 的错误信息
+          git push --force "https://x-access-token:${DEPLOY_TOKEN}@github.com/Like-dejavu/Like-dejavu.github.io.git" HEAD:main
+          echo "已推送到 Like-dejavu.github.io main"

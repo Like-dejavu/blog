@@ -1,0 +1,39 @@
+# landscape 主题配置（覆盖 node_modules/hexo-theme-landscape/_config.yml）
+# 只调整菜单文案与侧栏挂件，其余保持主题默认。
+
+menu:
+  首页: /
+  归档: /archives
+  分类: /categories
+  标签: /tags
+
+# RSS 链接（页头图标）
+rss: /atom.xml
+
+# 首页/列表页「阅读更多」文案
+excerpt_link: 阅读全文
+
+# 图片灯箱
+fancybox: true
+
+# 侧栏位置：left / right
+sidebar: right
+
+# 侧栏挂件顺序（标签云已含全部标签，故不再单列 tag 列表）
+widgets:
+  - category
+  - tagcloud
+  - archive
+  - recent_posts
+
+# 归档按月/年
+archive_type: monthly
+
+# 最新文章条数
+recent_posts_limits: 5
+
+# 页头背景图（dejavu-ui 已隐藏原 300px 页头，此处保留以便随时恢复）
+banner: images/banner.jpg
+
+# 页头副标题（留空）
+subtitle:

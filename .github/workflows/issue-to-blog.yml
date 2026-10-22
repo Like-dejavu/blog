@@ -4,10 +4,17 @@ on:
   issues:
     types: [opened, edited, labeled]
 
+# contents: 写文章到 source 分支
+# issues:   回评 + 关闭 issue
+# actions:  提交后主动触发 Hexo Deploy（默认 GITHUB_TOKEN 的 push 不会触发别的 workflow）
 permissions:
   contents: write
   issues: write
-  pull-requests: write
+  actions: write
+
+concurrency:
+  group: issue-to-blog-${{ github.event.issue.number }}
+  cancel-in-progress: false
 
 jobs:
   issue-to-blog:
@@ -26,7 +33,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate post file from issue
+      - name: Generate or update post file from issue
         id: gen
         shell: bash
         env:
@@ -34,54 +41,117 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_USER: ${{ github.event.issue.user.login }}
+          ISSUE_CREATED_AT: ${{ github.event.issue.created_at }}
         run: |
           set -euo pipefail
           mkdir -p source/_posts
 
           node <<'NODE'
           const fs = require('fs');
+          const path = require('path');
 
-          const title = process.env.ISSUE_TITLE || '未命名文章';
-          let body = process.env.ISSUE_BODY || '';
-          const issueNumber = process.env.ISSUE_NUMBER;
-          const author = process.env.ISSUE_USER || 'unknown';
+          const title = String(process.env.ISSUE_TITLE || '').trim() || '未命名文章';
+          const body = String(process.env.ISSUE_BODY || '');
+          const issueNumber = String(process.env.ISSUE_NUMBER || '').trim();
+          const author = String(process.env.ISSUE_USER || 'unknown');
+          const createdAt = String(process.env.ISSUE_CREATED_AT || new Date().toISOString());
 
-          const safeTitle = title
-            .replace(/^[\s\-]+|[\s\-]+$/g, '')
-            .replace(/[\\/:*?"<>|#%{}~`&$!'"()[\]]/g, '')
-            .replace(/\s+/g, '-')
-            .slice(0, 80) || 'post-' + issueNumber;
+          const postsDir = 'source/_posts';
+          const marker = `<!-- issue: ${issueNumber} -->`;
 
-          const now = new Date();
-          const pad = (n) => String(n).padStart(2, '0');
-          const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-          const fullDateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-
-          const filename = `source/_posts/${dateStr}-${safeTitle}.md`;
-
-          let content;
-          if (/^---\s*\n/.test(body)) {
-            const fmEnd = body.indexOf('\n---', 4);
-            if (fmEnd === -1) {
-              content = `---\ntitle: ${title}\ndate: ${fullDateStr}\nauthor: ${author}\n---\n\n${body}\n\n<!-- issue: ${issueNumber} -->\n`;
-            } else {
-              let fm = body.slice(4, fmEnd);
-              const rest = body.slice(fmEnd + 4);
-              if (!/^title:/m.test(fm)) fm = `title: ${title}\n` + fm;
-              if (!/^date:/m.test(fm)) fm = `date: ${fullDateStr}\n` + fm;
-              if (!/^author:/m.test(fm)) fm = `author: ${author}\n` + fm;
-              content = `---${fm}---${rest}\n\n<!-- issue: ${issueNumber} -->\n`;
-            }
-          } else {
-            content = `---\ntitle: ${title}\ndate: ${fullDateStr}\nauthor: ${author}\n---\n\n${body}\n\n<!-- issue: ${issueNumber} -->\n`;
+          // 站点时区固定 Asia/Shanghai，用 issue 创建时间而不是每次运行时间，
+          // 这样「编辑 issue」不会改动文章日期、也不会把文章顶到首页最前面。
+          function siteTime(iso) {
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return null;
+            const parts = new Intl.DateTimeFormat('sv-SE', {
+              timeZone: 'Asia/Shanghai',
+              year: 'numeric', month: '2-digit', day: '2-digit',
+              hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+            }).formatToParts(d).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+            return {
+              date: `${parts.year}-${parts.month}-${parts.day}`,
+              datetime: `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`
+            };
           }
 
-          fs.writeFileSync(filename, content, 'utf8');
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `file_path=${filename}\n`);
-          console.log('Generated:', filename);
+          const t = siteTime(createdAt) || (() => {
+            const d = new Date();
+            const p = (n) => String(n).padStart(2, '0');
+            const date = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+            return { date, datetime: `${date} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}` };
+          })();
+
+          // YAML 双引号字符串：JSON.stringify 的转义对 YAML 双引号同样有效，
+          // 可以安全处理标题里的 : # " { } 等字符
+          const yamlString = (v) => JSON.stringify(String(v));
+
+          function slugify(text) {
+            const slug = text
+              .replace(/^[\s\-]+|[\s\-]+$/g, '')
+              .replace(/[\\/:*?"<>|#%{}~`&$!'()\[\]]/g, '')
+              .replace(/\s+/g, '-')
+              .slice(0, 80)
+              .replace(/^-+|-+$/g, '');
+            return slug || `post-${issueNumber}`;
+          }
+
+          // 同一 issue 只对应一篇文章：已存在则原地更新，避免每次编辑都新增一份
+          let target = null;
+          for (const name of fs.readdirSync(postsDir)) {
+            if (!name.endsWith('.md')) continue;
+            const full = path.join(postsDir, name);
+            let text = '';
+            try { text = fs.readFileSync(full, 'utf8'); } catch { continue; }
+            if (text.includes(marker)) { target = full; break; }
+          }
+
+          let isNew = false;
+          if (!target) {
+            isNew = true;
+            const base = `${t.date}-${slugify(title)}`;
+            target = path.join(postsDir, `${base}.md`);
+            let n = 2;
+            while (fs.existsSync(target)) {
+              target = path.join(postsDir, `${base}-${n}.md`);
+              n += 1;
+            }
+          }
+
+          // issue 正文若自带 front matter，则保留用户写的 categories / tags 等字段
+          let rest = body;
+          let extraFrontMatter = '';
+          if (/^---\r?\n/.test(body)) {
+            const end = body.indexOf('\n---', 4);
+            if (end !== -1) {
+              const fm = body.slice(body.indexOf('\n') + 1, end);
+              rest = body.slice(end + 4);
+              extraFrontMatter = fm
+                .split(/\r?\n/)
+                .filter((line) => line.trim() && !/^(title|date|author|updated)\s*:/.test(line))
+                .join('\n');
+            }
+          }
+
+          const contentText = rest.trim() || `> 本文由 issue #${issueNumber} 自动生成。\n`;
+          const lines = [
+            '---',
+            `title: ${yamlString(title)}`,
+            `date: ${t.datetime}`,
+            `author: ${yamlString(author)}`
+          ];
+          if (extraFrontMatter.trim()) lines.push(extraFrontMatter.trim());
+          lines.push('---', '', contentText, '', marker, '');
+
+          fs.writeFileSync(target, lines.join('\n'), 'utf8');
+          console.log(`${isNew ? '新建' : '更新'}: ${target}`);
+
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `file_path=${target}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `is_new=${isNew}\n`);
           NODE
 
       - name: Commit and push
+        id: push
         shell: bash
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -93,33 +163,54 @@ jobs:
           git add source/_posts/
 
           if git diff --staged --quiet; then
-            echo "No changes to commit."
+            echo "文章内容没有变化，无需提交"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          git commit -m "docs: add post from issue #${ISSUE_NUMBER} [skip ci]"
+          # 注意：这里不能带 [skip ci]，否则 GitHub 会跳过构建部署
+          git commit -m "docs: publish post from issue #${ISSUE_NUMBER}"
           git push origin source
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger Hexo Deploy
+        if: steps.push.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # 用 GITHUB_TOKEN 做的 push 不会触发其他 workflow，必须显式派发部署
+          gh workflow run hexo-deploy.yml --ref source --repo "$GITHUB_REPOSITORY"
+          sleep 8
+          gh run list --workflow=hexo-deploy.yml --branch=source --limit 3 || true
 
       - name: Comment on issue
-        if: always()
+        if: always() && steps.gen.outputs.file_path != ''
         uses: actions/github-script@v7
         with:
           script: |
             const issueNumber = context.issue.number;
             const filePath = '${{ steps.gen.outputs.file_path }}';
+            const changed = '${{ steps.push.outputs.changed }}';
             const repo = context.repo;
             const fileUrl = `https://github.com/${repo.owner}/${repo.repo}/blob/source/${filePath}`;
-
+            const lines = [
+              `${changed === 'true' ? '✅ 已发布' : 'ℹ️ 内容无变化'}：${fileUrl}`,
+              changed === 'true'
+                ? '构建部署已触发，通常 1～3 分钟后可在 https://like-dejavu.github.io/ 看到。'
+                : '文章内容与仓库一致，未重复提交。'
+            ];
             await github.rest.issues.createComment({
               owner: repo.owner,
               repo: repo.repo,
               issue_number: issueNumber,
-              body: `✅ 已自动生成博客文章：\n\n[${filePath}](${fileUrl})\n\n如需修改，直接编辑本 issue 后会自动同步。`
+              body: lines.join('\n\n') + '\n\n如需修改，直接编辑本 issue，保存后会自动同步。'
             });
-
-            await github.rest.issues.update({
-              owner: repo.owner,
-              repo: repo.repo,
-              issue_number: issueNumber,
-              state: 'closed'
-            });
+            if (changed === 'true') {
+              await github.rest.issues.update({
+                owner: repo.owner,
+                repo: repo.repo,
+                issue_number: issueNumber,
+                state: 'closed'
+              });
+            }
