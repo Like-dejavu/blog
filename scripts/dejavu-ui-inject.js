@@ -18,7 +18,12 @@ const boot = `<script>(function(){try{var t=localStorage.getItem('dj-theme');if(
   .replace(/</g, '\\u003c')};})();</script>`;
 
 hexo.extend.injector.register('head_begin', boot);
-hexo.extend.injector.register('head_end', '<link rel="stylesheet" href="/css/dejavu-ui.css" media="all">');
+hexo.extend.injector.register('head_end', [
+  '<link rel="stylesheet" href="/css/dejavu-ui.css" media="all">',
+  '<link rel="icon" type="image/png" sizes="256x256" href="/favicon.png">',
+  '<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">',
+  '<meta name="theme-color" content="#1b1d26">'
+].join(''));
 hexo.extend.injector.register('body_begin', '<div id="dj-stats" hidden data-stats="__DJ_STATS__"></div>');
 hexo.extend.injector.register('body_end', '<script src="/js/dejavu-ui.js" defer></script>');
 
